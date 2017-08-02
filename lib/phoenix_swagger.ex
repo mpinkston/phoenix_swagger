@@ -40,6 +40,8 @@ defmodule PhoenixSwagger do
 
   @table :validator_table
 
+  @key_formatter Application.get_env(:phoenix_swagger, :key_format, :underscored)
+
   def start(_type, _args) do
     import Supervisor.Spec, warn: false
 
@@ -228,7 +230,7 @@ defmodule PhoenixSwagger do
   end
   def to_json(value) when is_map(value) do
     value
-    |> Enum.map(fn {k,v} -> {to_string(k), to_json(v)} end)
+    |> Enum.map(fn {k,v} -> {format_key(k), to_json(v)} end)
     |> Enum.filter(fn {_, :null} -> false; _ -> true end)
     |> Enum.into(%{})
   end
@@ -241,4 +243,15 @@ defmodule PhoenixSwagger do
   def to_json(false) do false end
   def to_json(value) when is_atom(value) do to_string(value) end
   def to_json(value) do value end
+
+  @doc false
+  def format_key(k) when is_atom(k), do: k |> Atom.to_string |> format_key
+  def format_key(key), do: do_format_key(key, @key_formatter)
+
+  @doc false
+  def do_format_key(key, :underscored), do: key
+  def do_format_key(key, :dasherized),  do: String.replace(key, "_", "-")
+  def do_format_key(key, {:custom, module, fun}), do: apply(module, fun, [key])
+  def do_format_key(key, {:custom, module, fun, _}), do: apply(module, fun, [key])
+
 end
